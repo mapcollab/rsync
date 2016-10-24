@@ -12,21 +12,11 @@ Version: 3.1.2
 Release: 2%{?dist}
 Group: Applications/Internet
 URL: http://rsync.samba.org/
-
-Source0: https://download.samba.org/pub/rsync/src/rsync-%{version}%{?prerelease}.tar.gz
-Source1: https://download.samba.org/pub/rsync/src/rsync-patches-%{version}%{?prerelease}.tar.gz
-Source2: rsyncd.socket
-Source3: rsyncd.service
-Source4: rsyncd.conf
-Source5: rsyncd.sysconfig
-Source6: rsyncd@.service
-
+Source0: %{name}-%{version}.tar.gz
 BuildRequires: libacl-devel, libattr-devel, autoconf, popt-devel, systemd-units
 #Requires: zlib
 License: GPLv3+
 
-Patch0: rsync-man.patch
-Patch1: rsync-noatime.patch
 
 %description
 Rsync uses a reliable algorithm to bring remote and host files into
@@ -53,25 +43,29 @@ package provides the anonymous rsync service.
 
 %if %isprerelease
 %setup -q -n rsync-%{version}%{?prerelease}
-%setup -q -b 1 -n rsync-%{version}%{?prerelease}
 %else
 %setup -q
-%setup -q -b 1
 %endif
 
 chmod -x support/*
 
 #Needed for compatibility with previous patched rsync versions
-patch -p1 -i patches/acls.diff
-patch -p1 -i patches/xattrs.diff
+patch -p1 -i rsync-patches/acls.diff
+patch -p1 -i rsync-patches/xattrs.diff
 
 #Enable --copy-devices parameter
-patch -p1 -i patches/copy-devices.diff
+patch -p1 -i rsync-patches/copy-devices.diff
 
-%patch0 -p1 -b .man
-%patch1 -p1 -b .noatime
+patch -p1 -i rsync-patches/rsync-man.patch
+patch -p1 -i rsync-patches/rsync-noatime.patch
+patch -p1 -i rsync-patches/rsync-3.0.10-lose-track.patch
+patch -p1 -i rsync-patches/rsync-3.0.6-iconv-logging.patch
 
 %build
+
+# if building with external cflags, append hardened flags to avoid compilation fail
+[ -n "$CFLAGS" ] && CFLAGS="$CFLAGS %{_hardened_cflags}"
+[ -n "$CXXFLAGS" ] && CXXFLAGS="$CXXFLAGS %{_hardened_cflags}"
 
 %configure
 # --with-included-zlib=no temporary disabled because of #1043965
@@ -83,11 +77,11 @@ rm -rf $RPM_BUILD_ROOT
 
 %makeinstall INSTALLCMD='install -p' INSTALLMAN='install -p'
 
-install -D -m644 %{SOURCE3} $RPM_BUILD_ROOT/%{_unitdir}/rsyncd.service
-install -D -m644 %{SOURCE2} $RPM_BUILD_ROOT/%{_unitdir}/rsyncd.socket
-install -D -m644 %{SOURCE4} $RPM_BUILD_ROOT/%{_sysconfdir}/rsyncd.conf
-install -D -m644 %{SOURCE5} $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/rsyncd
-install -D -m644 %{SOURCE6} $RPM_BUILD_ROOT/%{_unitdir}/rsyncd@.service
+install -D -m644 rsync-patches/rsyncd.service $RPM_BUILD_ROOT/%{_unitdir}/rsyncd.service
+install -D -m644 rsync-patches/rsyncd.socket $RPM_BUILD_ROOT/%{_unitdir}/rsyncd.socket
+install -D -m644 rsync-patches/rsyncd.conf $RPM_BUILD_ROOT/%{_sysconfdir}/rsyncd.conf
+install -D -m644 rsync-patches/rsyncd.sysconfig $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/rsyncd
+install -D -m644 rsync-patches/rsyncd@.service $RPM_BUILD_ROOT/%{_unitdir}/rsyncd@.service
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -108,13 +102,13 @@ rm -rf $RPM_BUILD_ROOT
 %{_unitdir}/rsyncd.service
 %{_unitdir}/rsyncd@.service
 
-%post
+%post daemon
 %systemd_post rsyncd.service
 
-%preun
+%preun daemon
 %systemd_preun rsyncd.service
 
-%postun
+%postun daemon
 %systemd_postun_with_restart rsyncd.service
 
 %changelog
