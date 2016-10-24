@@ -9,7 +9,7 @@
 Summary: A program for synchronizing files over a network
 Name: rsync
 Version: 3.1.2
-Release: 2%{?dist}
+Release: 3%{?dist}
 Group: Applications/Internet
 URL: http://rsync.samba.org/
 Source0: %{name}-%{version}.tar.gz
@@ -112,6 +112,10 @@ rm -rf $RPM_BUILD_ROOT
 %systemd_postun_with_restart rsyncd.service
 
 %changelog
+* Mon Oct 24 2016 Michal Gawlik <michal.gawlik@thalesgroup.com> 3.1.2-3
+- new package built with tito
+- equal to rsync 3.1.2 from FC24 + extra EL7 patches (no custom adaptations)
+
 * Thu Feb 04 2016 Fedora Release Engineering <releng@fedoraproject.org> - 3.1.2-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_24_Mass_Rebuild
 
