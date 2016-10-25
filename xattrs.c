@@ -795,7 +795,7 @@ static int rsync_xal_set(const char *fname, item_list *xalp,
 	int user_only = am_root <= 0;
 #endif
 	size_t name_len;
-	int ret = 0;
+	int r, ret = 0;
 
 	/* This puts the current name list into the "namebuf" buffer. */
 	if ((list_len = get_xattr_names(fname)) < 0)
@@ -882,9 +882,31 @@ static int rsync_xal_set(const char *fname, item_list *xalp,
 				break;
 		}
 		if (i == xalp->count) {
-			if (sys_lremovexattr(fname, name) < 0) {
+			r = sys_lremovexattr(fname, name);
+#ifdef HAVE_LINUX_XATTRS
+			if (r < 0 && (errno == EACCES || errno == EPERM)
+					&& strcmp(name, "security.selinux") == 0) {
+				/* When the SELinux is enabled, the security.selinux
+				 * attribute cannot be removed, even in permissive mode.
+				 *
+				 * If we're syncing from unlabelled FS to labelled one,
+				 * a default label is added upon target file creation,
+				 * which we fail to remove here.
+				 *
+				 * Since it's expected behavior when SELinux is enabled,
+				 * don't fail the transfer because of that.
+				 *
+				 * TODO: this probably should be enabled by cmdline option.
+				 */
+				rprintf(FWARNING, "rsync_xal_set: lremovexattr(%s,\"%s\") failed (ignoring)\n",
+					full_fname(fname), name);
+				r = 0;
+				errno = 0;
+			}
+#endif
+			if (r < 0) {
 				rsyserr(FERROR_XFER, errno,
-					"rsync_xal_set: lremovexattr(\"%s\",\"%s\") failed",
+					"rsync_xal_set: lremovexattr(%s,\"%s\") failed",
 					full_fname(fname), name);
 				ret = -1;
 			} else /* make sure caller sets mtime */
