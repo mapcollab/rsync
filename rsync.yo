@@ -376,10 +376,11 @@ to the detailed description below for a complete description.  verb(
  -J, --omit-link-times       omit symlinks from --times
      --super                 receiver attempts super-user activities
      --fake-super            store/recover privileged attrs using xattrs
- -S, --sparse                handle sparse files efficiently
+ -S, --sparse                turn sequences of nulls into sparse blocks
      --preallocate           allocate dest files before writing
  -n, --dry-run               perform a trial run with no changes made
  -W, --whole-file            copy files whole (w/o delta-xfer algorithm)
+     --checksum-choice=STR   choose the checksum algorithms
  -x, --one-file-system       don't cross filesystem boundaries
  -B, --block-size=SIZE       force a fixed checksum block-size
  -e, --rsh=COMMAND           specify the remote shell to use
@@ -413,7 +414,7 @@ to the detailed description below for a complete description.  verb(
      --contimeout=SECONDS    set daemon connection timeout in seconds
  -I, --ignore-times          don't skip files that match size and time
      --size-only             skip files that match in size
-     --modify-window=NUM     compare mod-times with reduced accuracy
+ -@, --modify-window=NUM     set the accuracy for mod-time comparisons
  -T, --temp-dir=DIR          create temporary files in directory DIR
  -y, --fuzzy                 find similar file for basis if no dest file
      --compare-dest=DIR      also compare received files relative to DIR
@@ -605,13 +606,23 @@ time to just looking for files that have changed in size.  This is useful
 when starting to use rsync after using another mirroring system which may
 not preserve timestamps exactly.
 
-dit(bf(--modify-window)) When comparing two timestamps, rsync treats the
+dit(bf(-@, --modify-window)) When comparing two timestamps, rsync treats the
 timestamps as being equal if they differ by no more than the modify-window
-value.  This is normally 0 (for an exact match), but you may find it useful
-to set this to a larger value in some situations.  In particular, when
-transferring to or from an MS Windows FAT filesystem (which represents
-times with a 2-second resolution), bf(--modify-window=1) is useful
-(allowing times to differ by up to 1 second).
+value.  The default is 0, which matches just integer seconds.  If you specify a
+negative value (and the receiver is at least version 3.1.3) then nanoseconds
+will also be taken into account.  Specifying 1 is useful for copies to/from MS
+Windows FAT filesystems, because FAT represents times with a 2-second
+resolution (allowing times to differ from the original by up to 1 second).
+
+If you want all your transfers to default to comparing nanoseconds, you can
+create a ~/.popt file and put these lines in it:
+
+quote(tt(   rsync alias -a -a@-1))
+quote(tt(   rsync alias -t -t@-1))
+
+With that as the default, you'd need to specify bf(--modify-window=0) (aka
+bf(-@0)) to override it and ignore nanoseconds, e.g. if you're copying between
+ext3 and ext4, or if the receiving rsync is older than 3.1.3.
 
 dit(bf(-c, --checksum)) This changes the way rsync checks if the files have
 been changed and are in need of a transfer.  Without this option, rsync
@@ -862,9 +873,7 @@ the same or longer than the size on the sender, the file is skipped.  This
 does not interfere with the updating of a file's non-content attributes
 (e.g. permissions, ownership, etc.) when the file does not need to be
 transferred, nor does it affect the updating of any non-regular files.
-Implies bf(--inplace),
-but does not conflict with bf(--sparse) (since it is always extending a
-file's length).
+Implies bf(--inplace).
 
 The use of bf(--append) can be dangerous if you aren't 100% sure that the files
 that are longer have only grown by the appending of data onto the end.  You
@@ -1241,19 +1250,29 @@ This option is overridden by both bf(--super) and bf(--no-super).
 See also the "fake super" setting in the daemon's rsyncd.conf file.
 
 dit(bf(-S, --sparse)) Try to handle sparse files efficiently so they take
-up less space on the destination.  Conflicts with bf(--inplace) because it's
-not possible to overwrite data in a sparse fashion.
+up less space on the destination.  If combined with bf(--inplace) the
+file created might not end up with sparse blocks with some combinations
+of kernel version and/or filesystem type.  If bf(--whole-file) is in
+effect (e.g. for a local copy) then it will always work because rsync
+truncates the file prior to writing out the updated version.
+
+Note that versions of rsync older than 3.1.3 will reject the combination of
+bf(--sparse) and bf(--inplace).
 
 dit(bf(--preallocate)) This tells the receiver to allocate each destination
-file to its eventual size before writing data to the file.  Rsync will only use
-the real filesystem-level preallocation support provided by Linux's
+file to its eventual size before writing data to the file.  Rsync will only
+use the real filesystem-level preallocation support provided by Linux's
 bf(fallocate)(2) system call or Cygwin's bf(posix_fallocate)(3), not the slow
-glibc implementation that writes a zero byte into each block.
+glibc implementation that writes a null byte into each block.
 
 Without this option, larger files may not be entirely contiguous on the
 filesystem, but with this option rsync will probably copy more slowly.  If the
 destination is not an extent-supporting filesystem (such as ext4, xfs, NTFS,
 etc.), this option may have no positive effect at all.
+
+If combined with bf(--sparse), the file will only have sparse blocks (as
+opposed to allocated sequences of null bytes) if the kernel version and
+filesystem type support creating holes in the allocated data.
 
 dit(bf(-n, --dry-run)) This makes rsync perform a trial run that doesn't
 make any changes (and produces mostly the same output as a real run).  It
@@ -1270,13 +1289,26 @@ the "bytes sent", "bytes received", "literal data", and "matched data"
 statistics are too small, and the "speedup" value is equivalent to a run
 where no file transfers were needed.
 
-dit(bf(-W, --whole-file)) With this option rsync's delta-transfer algorithm
-is not used and the whole file is sent as-is instead.  The transfer may be
+dit(bf(-W, --whole-file)) This option disables rsync's delta-transfer algorithm,
+which causes all transferred files to be sent whole.  The transfer may be
 faster if this option is used when the bandwidth between the source and
 destination machines is higher than the bandwidth to disk (especially when the
 "disk" is actually a networked filesystem).  This is the default when both
 the source and destination are specified as local paths, but only if no
 batch-writing option is in effect.
+
+dit(bf(--checksum-choice=STR)) This option overrides the checksum algoriths.
+If one algorithm name is specified, it is used for both the transfer checksums
+and (assuming bf(--checksum) is specifed) the pre-transfer checksumming. If two
+comma-separated names are supplied, the first name affects the transfer
+checksums, and the second name affects the pre-transfer checksumming.
+
+The algorithm choices are "auto", "md4", "md5", and "none".  If "none" is
+specified for the first name, the bf(--whole-file) option is forced on and no
+checksum verification is performed on the transferred data.  If "none" is
+specified for the second name, the bf(--checksum) option cannot be used. The
+"auto" option is the default, where rsync bases its algorithm choice on the
+protocol version (for backward compatibility with older rsync versions).
 
 dit(bf(-x, --one-file-system)) This tells rsync to avoid crossing a
 filesystem boundary when recursing.  This does not limit the user's ability
@@ -2806,16 +2838,20 @@ itemization(
 )
 
 Note that, when using the bf(--recursive) (bf(-r)) option (which is implied by
-bf(-a)), every subcomponent of every path is visited from the top down, so
-include/exclude patterns get applied recursively to each subcomponent's
-full name (e.g. to include "/foo/bar/baz" the subcomponents "/foo" and
-"/foo/bar" must not be excluded).
-The exclude patterns actually short-circuit the directory traversal stage
-when rsync finds the files to send.  If a pattern excludes a particular
-parent directory, it can render a deeper include pattern ineffectual
-because rsync did not descend through that excluded section of the
-hierarchy.  This is particularly important when using a trailing '*' rule.
-For instance, this won't work:
+bf(-a)), every subdir component of every path is visited left to right, with
+each directory having a chance for exclusion before its content.  In this way
+include/exclude patterns are applied recursively to the pathname of each node
+in the filesystem's tree (those inside the transfer).  The exclude patterns
+short-circuit the directory traversal stage as rsync finds the files to send.
+
+For instance, to include "/foo/bar/baz", the directories "/foo" and "/foo/bar"
+must not be excluded.  Excluding one of those parent directories prevents the
+examination of its content, cutting off rsync's recursion into those paths and
+rendering the include for "/foo/bar/baz" ineffectual (since rsync can't match
+something it never sees in the cut-off section of the directory hierarchy).
+
+The concept path exclusion is particularly important when using a trailing '*'
+rule.  For instance, this won't work:
 
 quote(
 tt(+ /some/path/this-file-will-not-be-found)nl()
