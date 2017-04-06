@@ -112,6 +112,12 @@ rm -rf $RPM_BUILD_ROOT
 %systemd_postun_with_restart rsyncd.service
 
 %changelog
+* Thu Apr 06 2017 Michal Gawlik <michal.gawlik@thalesgroup.com> 3.1.2.90-mps.1
+- Updated to 3.1.3dev rev a4e8b552d6a99373ef1c8cdb075568e755b5f402
+- Such version contains:
+  > Support --sparse combined with --preallocate or --inplace. (wayned@samba.org)
+  which is required by new MIA.
+
 * Tue Oct 25 2016 Michal Gawlik <michal.gawlik@thalesgroup.com> 3.1.2-4
 - xattrs for MPS: do not fail if removing security.selinux label failed
   (michal.gawlik@thalesgroup.com)
