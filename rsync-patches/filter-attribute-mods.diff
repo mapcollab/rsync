@@ -9,7 +9,7 @@ To use this patch, run these commands for a successful build:
     ./configure                         (optional if already run)
     make
 
-based-on: 16b49716d55a50f2e985b879b720b2c53c892a3a
+based-on: d1a1fec1340254926e17f5d83f848f7574286a33
 diff --git a/exclude.c b/exclude.c
 --- a/exclude.c
 +++ b/exclude.c
@@ -238,7 +238,7 @@ diff --git a/exclude.c b/exclude.c
 diff --git a/flist.c b/flist.c
 --- a/flist.c
 +++ b/flist.c
-@@ -80,6 +80,7 @@ extern struct chmod_mode_struct *chmod_modes;
+@@ -81,6 +81,7 @@ extern struct chmod_mode_struct *chmod_modes;
  
  extern filter_rule_list filter_list;
  extern filter_rule_list daemon_filter_list;
@@ -386,7 +386,7 @@ diff --git a/rsync.h b/rsync.h
 diff --git a/rsync.yo b/rsync.yo
 --- a/rsync.yo
 +++ b/rsync.yo
-@@ -1135,6 +1135,8 @@ quote(--chmod=D2775,F664)
+@@ -1144,6 +1144,8 @@ quote(--chmod=D2775,F664)
  
  It is also legal to specify multiple bf(--chmod) options, as each
  additional option is just appended to the list of changes to make.
@@ -395,7 +395,7 @@ diff --git a/rsync.yo b/rsync.yo
  
  See the bf(--perms) and bf(--executability) options for how the resulting
  permission value can be applied to the files in the transfer.
-@@ -2031,6 +2033,10 @@ be omitted, but if USER is empty, a leading colon must be supplied.
+@@ -2063,6 +2065,10 @@ be omitted, but if USER is empty, a leading colon must be supplied.
  If you specify "--chown=foo:bar, this is exactly the same as specifying
  "--usermap=*:foo --groupmap=*:bar", only easier.
  
@@ -406,7 +406,7 @@ diff --git a/rsync.yo b/rsync.yo
  dit(bf(--timeout=TIMEOUT)) This option allows you to set a maximum I/O
  timeout in seconds. If no data is transferred for the specified time
  then rsync will exit. The default is 0, which means no timeout.
-@@ -2890,6 +2896,15 @@ itemization(
+@@ -2926,6 +2932,15 @@ itemization(
    option's default rules that exclude things like "CVS" and "*.o" are
    marked as perishable, and will not prevent a directory that was removed
    on the source from being deleted on the destination.
@@ -422,7 +422,7 @@ diff --git a/rsync.yo b/rsync.yo
  )
  
  manpagesection(MERGE-FILE FILTER RULES)
-@@ -2951,6 +2966,12 @@ itemization(
+@@ -2987,6 +3002,12 @@ itemization(
    a rule prefix such as bf(hide)).
  )
  
@@ -438,7 +438,7 @@ diff --git a/rsync.yo b/rsync.yo
 diff --git a/util.c b/util.c
 --- a/util.c
 +++ b/util.c
-@@ -852,6 +852,25 @@ size_t stringjoin(char *dest, size_t destsize, ...)
+@@ -878,6 +878,25 @@ size_t stringjoin(char *dest, size_t destsize, ...)
  	return ret;
  }
  
@@ -464,69 +464,3 @@ diff --git a/util.c b/util.c
  int count_dir_elements(const char *p)
  {
  	int cnt = 0, new_component = 1;
-diff -Nurp a/proto.h b/proto.h
---- a/proto.h
-+++ b/proto.h
-@@ -369,6 +369,7 @@ void glob_expand_module(char *base1, cha
- void strlower(char *s);
- size_t pathjoin(char *dest, size_t destsize, const char *p1, const char *p2);
- size_t stringjoin(char *dest, size_t destsize, ...);
-+BOOL snappendf(char **dest_ptr, size_t sz, const char *format, ...);
- int count_dir_elements(const char *p);
- int clean_fname(char *name, int flags);
- char *sanitize_path(char *dest, const char *p, const char *rootdir, int depth,
-diff -Nurp a/rsync.1 b/rsync.1
---- a/rsync.1
-+++ b/rsync.1
-@@ -1303,6 +1303,8 @@ Using octal mode numbers is also allowed
- .IP 
- It is also legal to specify multiple \fB\-\-chmod\fP options, as each
- additional option is just appended to the list of changes to make.
-+To change permissions of files matching a pattern, use an include filter with
-+the \fBm\fP modifier, which takes effect before any \fB\-\-chmod\fP options.
- .IP 
- See the \fB\-\-perms\fP and \fB\-\-executability\fP options for how the resulting
- permission value can be applied to the files in the transfer.
-@@ -2304,6 +2306,10 @@ be omitted, but if USER is empty, a lead
- If you specify \(dq\&\-\-chown=foo:bar, this is exactly the same as specifying
- \(dq\&\-\-usermap=*:foo \-\-groupmap=*:bar\(dq\&, only easier.
- .IP 
-+To change ownership of files matching a pattern, use an include filter with
-+the \fBo\fP and \fBg\fP modifiers, which take effect before uid/gid mapping and
-+therefore \fIcan\fP be mixed with \fB\-\-usermap\fP and \fB\-\-groupmap\fP.
-+.IP 
- .IP "\fB\-\-timeout=TIMEOUT\fP"
- This option allows you to set a maximum I/O
- timeout in seconds. If no data is transferred for the specified time
-@@ -3308,6 +3314,18 @@ ignored in directories that are being de
- option\(cq\&s default rules that exclude things like \(dq\&CVS\(dq\& and \(dq\&*.o\(dq\& are
- marked as perishable, and will not prevent a directory that was removed
- on the source from being deleted on the destination.
-+.IP o 
-+An \fBm(CHMOD)\fP on an include rule tweaks the permissions of matching
-+source files in the same way as \fB\-\-chmod\fP.  This happens before any
-+tweaks requested via \fB\-\-chmod\fP options.
-+.IP o 
-+An \fBo(USER)\fP on an include rule pretends that matching source files
-+are owned by \fBUSER\fP (a name or numeric uid).  This happens before any uid
-+mapping by name or \fB\-\-usermap\fP.
-+.IP o 
-+A \fBg(GROUP)\fP on an include rule pretends that matching source files
-+are owned by \fBGROUP\fP (a name or numeric gid).  This happens before any gid
-+mapping by name or \fB\-\-groupmap\fP.
- 
- .PP 
- .SH "MERGE\-FILE FILTER RULES"
-@@ -3382,6 +3400,12 @@ then the rules in the file must not spec
- a rule prefix such as \fBhide\fP).
- 
- .PP 
-+The attribute\-affecting modifiers \fBm\fP, \fBo\fP, and \fBg\fP work only in client
-+filters (not in daemon filters), and only the modifiers of the first matching
-+rule are applied.  As an example, assuming \fB\-\-super\fP is enabled, the
-+rule \(dq\&+o(root)g(root)m(go=) *~\(dq\& would ensure that all \(dq\&backup\(dq\& files belong to
-+root and are not accessible to anyone else.
-+.PP 
- Per\-directory rules are inherited in all subdirectories of the directory
- where the merge\-file was found unless the \(cq\&n\(cq\& modifier was used.  Each
- subdirectory\(cq\&s rules are prefixed to the inherited per\-directory rules

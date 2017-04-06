@@ -10,7 +10,7 @@ To use this patch, run these commands for a successful build:
 TODO: the configure changes should abort if the user requests --enable-slp
 and we can't honor that request.
 
-based-on: 16b49716d55a50f2e985b879b720b2c53c892a3a
+based-on: d1a1fec1340254926e17f5d83f848f7574286a33
 diff --git a/Makefile.in b/Makefile.in
 --- a/Makefile.in
 +++ b/Makefile.in
@@ -61,7 +61,7 @@ diff --git a/clientserver.c b/clientserver.c
 diff --git a/configure.ac b/configure.ac
 --- a/configure.ac
 +++ b/configure.ac
-@@ -721,6 +721,29 @@ if test $rsync_cv_can_hardlink_special = yes; then
+@@ -751,6 +751,29 @@ if test $rsync_cv_can_hardlink_special = yes; then
      AC_DEFINE(CAN_HARDLINK_SPECIAL, 1, [Define to 1 if link() can hard-link special files.])
  fi
  
@@ -127,7 +127,7 @@ diff --git a/loadparm.c b/loadparm.c
 diff --git a/main.c b/main.c
 --- a/main.c
 +++ b/main.c
-@@ -1259,6 +1259,18 @@ static int start_client(int argc, char *argv[])
+@@ -1267,6 +1267,18 @@ static int start_client(int argc, char *argv[])
  
  	if (!read_batch) { /* for read_batch, NO source is specified */
  		char *path = check_for_hostspec(argv[0], &shell_machine, &rsync_port);
@@ -149,7 +149,7 @@ diff --git a/main.c b/main.c
 diff --git a/options.c b/options.c
 --- a/options.c
 +++ b/options.c
-@@ -572,6 +572,7 @@ static void print_rsync_version(enum logcode f)
+@@ -573,6 +573,7 @@ static void print_rsync_version(enum logcode f)
  	char const *links = "no ";
  	char const *iconv = "no ";
  	char const *ipv6 = "no ";
@@ -157,7 +157,7 @@ diff --git a/options.c b/options.c
  	STRUCT_STAT *dumstat;
  
  #if SUBPROTOCOL_VERSION != 0
-@@ -608,6 +609,9 @@ static void print_rsync_version(enum logcode f)
+@@ -609,6 +610,9 @@ static void print_rsync_version(enum logcode f)
  #ifdef CAN_SET_SYMLINK_TIMES
  	symtimes = "";
  #endif
@@ -167,7 +167,7 @@ diff --git a/options.c b/options.c
  
  	rprintf(f, "%s  version %s  protocol version %d%s\n",
  		RSYNC_NAME, RSYNC_VERSION, PROTOCOL_VERSION, subprotocol);
-@@ -621,8 +625,8 @@ static void print_rsync_version(enum logcode f)
+@@ -622,8 +626,8 @@ static void print_rsync_version(enum logcode f)
  		(int)(sizeof (int64) * 8));
  	rprintf(f, "    %ssocketpairs, %shardlinks, %ssymlinks, %sIPv6, batchfiles, %sinplace,\n",
  		got_socketpair, hardlinks, links, ipv6, have_inplace);
@@ -234,7 +234,7 @@ diff --git a/rsyncd.conf.yo b/rsyncd.conf.yo
  enddit()
  
  manpagesection(MODULE PARAMETERS)
-@@ -856,6 +865,7 @@ use chroot = yes
+@@ -863,6 +872,7 @@ use chroot = yes
  max connections = 4
  syslog facility = local5
  pid file = /var/run/rsyncd.pid
@@ -549,209 +549,3 @@ new file mode 100644
 +	/* refresh is done in main select loop */
 +	return 0;
 +}
-diff -Nurp a/config.h.in b/config.h.in
---- a/config.h.in
-+++ b/config.h.in
-@@ -222,6 +222,9 @@
- /* Define to 1 if you have the `sec' library (-lsec). */
- #undef HAVE_LIBSEC
- 
-+/* Define to 1 for SLP support */
-+#undef HAVE_LIBSLP
-+
- /* Define to 1 if you have the `socket' library (-lsocket). */
- #undef HAVE_LIBSOCKET
- 
-diff -Nurp a/configure.sh b/configure.sh
---- a/configure.sh
-+++ b/configure.sh
-@@ -633,6 +633,8 @@ BUILD_POPT
- CC_SHOBJ_FLAG
- OBJ_RESTORE
- OBJ_SAVE
-+SLPOBJ
-+LIBSLP
- ALLOCA
- LIBOBJS
- FAKEROOT_PATH
-@@ -719,6 +721,9 @@ enable_ipv6
- enable_locale
- enable_iconv_open
- enable_iconv
-+enable_slp
-+with_openslp_libs
-+with_openslp_includes
- enable_acl_support
- enable_xattr_support
- '
-@@ -1353,6 +1358,7 @@ Optional Features:
-   --disable-locale        disable locale features
-   --disable-iconv-open    disable all use of iconv_open() function
-   --disable-iconv         disable rsync's --iconv option
-+  --disable-slp           turn off SLP support, defaults to on
-   --disable-acl-support   disable ACL support
-   --disable-xattr-support disable extended attributes
- 
-@@ -1369,6 +1375,8 @@ Optional Packages:
-   --with-nobody-group=GROUP
-                           set the default unprivileged group (default nobody
-                           or nogroup)
-+  --with-openslp-libs     set directory for OpenSLP library
-+  --with-openslp-includes set directory for OpenSLP includes
- 
- Some influential environment variables:
-   CC          C compiler command
-@@ -8017,6 +8025,85 @@ $as_echo "#define CAN_HARDLINK_SPECIAL 1
- 
- fi
- 
-+# Check whether --enable-slp was given.
-+if test "${enable_slp+set}" = set; then :
-+  enableval=$enable_slp;
-+fi
-+
-+
-+# Check whether --with-openslp-libs was given.
-+if test "${with_openslp_libs+set}" = set; then :
-+  withval=$with_openslp_libs; LDFLAGS="-L$withval $LDFLAGS"
-+    DSOFLAGS="-L$withval $DSOFLAGS"
-+fi
-+
-+
-+# Check whether --with-openslp-includes was given.
-+if test "${with_openslp_includes+set}" = set; then :
-+  withval=$with_openslp_includes; CFLAGS="-I$withval $CFLAGS"
-+    CXXFLAGS="-I$withval $CXXFLAGS"
-+    CPPFLAGS="-I$withval $CPPFLAGS"
-+fi
-+
-+
-+LIBSLP=""
-+SLPOBJ=""
-+
-+if test x$enable_slp != xno; then
-+    ac_fn_c_check_header_mongrel "$LINENO" "slp.h" "ac_cv_header_slp_h" "$ac_includes_default"
-+if test "x$ac_cv_header_slp_h" = xyes; then :
-+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SLPOpen in -lslp" >&5
-+$as_echo_n "checking for SLPOpen in -lslp... " >&6; }
-+if ${ac_cv_lib_slp_SLPOpen+:} false; then :
-+  $as_echo_n "(cached) " >&6
-+else
-+  ac_check_lib_save_LIBS=$LIBS
-+LIBS="-lslp  $LIBS"
-+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-+/* end confdefs.h.  */
-+
-+/* Override any GCC internal prototype to avoid an error.
-+   Use char because int might match the return type of a GCC
-+   builtin and then its argument prototype would still apply.  */
-+#ifdef __cplusplus
-+extern "C"
-+#endif
-+char SLPOpen ();
-+int
-+main ()
-+{
-+return SLPOpen ();
-+  ;
-+  return 0;
-+}
-+_ACEOF
-+if ac_fn_c_try_link "$LINENO"; then :
-+  ac_cv_lib_slp_SLPOpen=yes
-+else
-+  ac_cv_lib_slp_SLPOpen=no
-+fi
-+rm -f core conftest.err conftest.$ac_objext \
-+    conftest$ac_exeext conftest.$ac_ext
-+LIBS=$ac_check_lib_save_LIBS
-+fi
-+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_slp_SLPOpen" >&5
-+$as_echo "$ac_cv_lib_slp_SLPOpen" >&6; }
-+if test "x$ac_cv_lib_slp_SLPOpen" = xyes; then :
-+
-+$as_echo "#define HAVE_LIBSLP 1" >>confdefs.h
-+
-+	    SLPOBJ="srvreg.o srvloc.o"
-+            LIBSLP="-lslp"
-+fi
-+
-+fi
-+
-+
-+fi
-+
-+
-+
-+
- { $as_echo "$as_me:${as_lineno-$LINENO}: checking for working socketpair" >&5
- $as_echo_n "checking for working socketpair... " >&6; }
- if ${rsync_cv_HAVE_SOCKETPAIR+:} false; then :
-diff -Nurp a/proto.h b/proto.h
---- a/proto.h
-+++ b/proto.h
-@@ -188,6 +188,7 @@ char *lp_pid_file(void);
- char *lp_socket_options(void);
- int lp_listen_backlog(void);
- int lp_rsync_port(void);
-+int lp_slp_refresh(void);
- char *lp_auth_users(int module_id);
- char *lp_charset(int module_id);
- char *lp_comment(int module_id);
-@@ -307,6 +308,8 @@ int open_socket_out_wrapped(char *host,
- int is_a_socket(int fd);
- void start_accept_loop(int port, int (*fn)(int, int));
- void set_socket_options(int fd, char *options);
-+int print_service_list(void);
-+int register_services(void);
- int do_unlink(const char *fname);
- int do_symlink(const char *lnk, const char *fname);
- ssize_t do_readlink(const char *path, char *buf, size_t bufsiz);
-diff -Nurp a/rsync.1 b/rsync.1
---- a/rsync.1
-+++ b/rsync.1
-@@ -183,7 +183,15 @@ particular rsync daemon by leaving off t
- .RE
- 
- .PP 
--See the following section for more details.
-+And, if Service Location Protocol is available, the following will list the
-+available rsync servers:
-+.PP 
-+.RS 
-+\f(CWrsync rsync://\fP
-+.RE
-+
-+.PP 
-+See the following section for even more usage details.
- .PP 
- .SH "ADVANCED USAGE"
- 
-diff -Nurp a/rsyncd.conf.5 b/rsyncd.conf.5
---- a/rsyncd.conf.5
-+++ b/rsyncd.conf.5
-@@ -144,6 +144,16 @@ via the \fB\-\-sockopts\fP command\-line
- You can override the default backlog value when the
- daemon listens for connections.  It defaults to 5.
- .IP 
-+.IP "\fBslp refresh\fP"
-+This parameter is used to determine how long service
-+advertisements are valid (measured in seconds), and is only applicable if
-+you have Service Location Protocol support compiled in. If this is
-+not set or is set to zero, then service advertisements never time out. If
-+this is set to less than 120 seconds, then 120 seconds is used. If it is
-+set to more than 65535, then 65535 is used (which is a limitation of SLP).
-+Using 3600 (one hour) is a good number if you tend to change your
-+configuration.
-+.IP 
- .SH "MODULE PARAMETERS"
- 
- .PP 
-@@ -991,6 +1001,7 @@ use chroot = yes
- max connections = 4
- syslog facility = local5
- pid file = /var/run/rsyncd.pid
-+slp refresh = 3600
- 
- [ftp]
-         path = /var/ftp/./pub

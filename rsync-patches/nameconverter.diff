@@ -20,7 +20,7 @@ To use this patch, run these commands for a successful build:
     ./configure                         (optional if already run)
     make
 
-based-on: 16b49716d55a50f2e985b879b720b2c53c892a3a
+based-on: d1a1fec1340254926e17f5d83f848f7574286a33
 diff --git a/authenticate.c b/authenticate.c
 --- a/authenticate.c
 +++ b/authenticate.c
@@ -216,7 +216,32 @@ diff --git a/loadparm.c b/loadparm.c
 diff --git a/rsyncd.conf.yo b/rsyncd.conf.yo
 --- a/rsyncd.conf.yo
 +++ b/rsyncd.conf.yo
-@@ -267,6 +267,27 @@ path elements that rsync believes will allow a symlink to escape the module's
+@@ -199,7 +199,7 @@ if the module is not read-only).
+ 
+ When this parameter is enabled, the "numeric-ids" option will also default to
+ being enabled (disabling name lookups).  See below for what a chroot needs in
+-order for name lookups to succeed.
++order for name lookups to succeed. See also the "name converter" parameter.
+ 
+ If you copy library resources into the module's chroot area, you
+ should protect them through your OS's normal user/group or ACL settings (to
+@@ -224,11 +224,14 @@ running as root (see "uid") or for "fake super" to be configured.
+ A chroot-enabled module should not have this parameter enabled unless you've
+ taken steps to ensure that the module has the necessary resources it needs
+ to translate names, and that it is not possible for a user to change those
+-resources.  That includes being the code being able to call functions like
++resources.  That can include being able to call functions like
+ code(getpwuid()), code(getgrgid()), code(getpwname()), and code(getgrnam())).
+ You should test what libraries and config files are required for your OS
+ and get those setup before starting to test name mapping in rsync.
+ 
++See also the "name converter" support for a way to convert names w/o any
++extra files in the chroot.
++
+ dit(bf(munge symlinks)) This parameter tells rsync to modify
+ all symlinks in the same way as the (non-daemon-affecting)
+ bf(--munge-links) command-line option (using a method described below).
+@@ -267,6 +270,30 @@ path elements that rsync believes will allow a symlink to escape the module's
  hierarchy.  There are tricky ways to work around this, though, so you had
  better trust your users if you choose this combination of parameters.
  
@@ -240,6 +265,9 @@ diff --git a/rsyncd.conf.yo b/rsyncd.conf.yo
 +bf(RSYNC_MODULE_PATH), bf(RSYNC_HOST_ADDR), bf(RSYNC_HOST_NAME), and
 +bf(RSYNC_USER_NAME).  This is useful if you want to customize the
 +conversion using a single program invocation.
++
++NOTE: if "use chroot" is enabled, you must explicity set "numeric ids"
++to False.
 +
  dit(bf(charset)) This specifies the name of the character set in which the
  module's filenames are stored.  If the client uses an bf(--iconv) option,
@@ -434,69 +462,3 @@ diff --git a/util.c b/util.c
  extern filter_rule_list daemon_filter_list;
  
  int sanitize_paths = 0;
-diff -Nurp a/proto.h b/proto.h
---- a/proto.h
-+++ b/proto.h
-@@ -53,6 +53,8 @@ int check_name(int fd,
- int start_socket_client(char *host, int remote_argc, char *remote_argv[],
- 			int argc, char *argv[]);
- int start_inband_exchange(int f_in, int f_out, const char *user, int argc, char *argv[]);
-+int namecvt_name(const char *cmd, const char *name);
-+const char *namecvt_id(const char *cmd, int id);
- int start_daemon(int f_in, int f_out);
- int daemon_main(void);
- void set_allow_inc_recurse(void);
-@@ -209,6 +211,7 @@ char *lp_outgoing_chmod(int module_id);
- char *lp_path(int module_id);
- char *lp_postxfer_exec(int module_id);
- char *lp_prexfer_exec(int module_id);
-+char *lp_name_converter(int module_id);
- char *lp_refuse_options(int module_id);
- char *lp_secrets_file(int module_id);
- char *lp_temp_dir(int module_id);
-@@ -336,8 +339,8 @@ void send_token(int f, int32 token, stru
- 		int32 n, int32 toklen);
- int32 recv_token(int f, char **data);
- void see_token(char *data, int32 toklen);
--char *uid_to_user(uid_t uid);
--char *gid_to_group(gid_t gid);
-+const char *uid_to_user(uid_t uid);
-+const char *gid_to_group(gid_t gid);
- int user_to_uid(const char *name, uid_t *uid_p, BOOL num_ok);
- int group_to_gid(const char *name, gid_t *gid_p, BOOL num_ok);
- uid_t match_uid(uid_t uid);
-diff -Nurp a/rsyncd.conf.5 b/rsyncd.conf.5
---- a/rsyncd.conf.5
-+++ b/rsyncd.conf.5
-@@ -297,6 +297,31 @@ path elements that rsync believes will a
- hierarchy.  There are tricky ways to work around this, though, so you had
- better trust your users if you choose this combination of parameters.
- .IP 
-+.IP "\fBname converter\fP"
-+This parameter lets you specify a
-+program that will be run by the rsync daemon (prior to \fBuse chroot\fP, if
-+that parameter is enabled) to convert user/group names into numbers or visa
-+versa.  There is a sample perl script in the support directory named
-+\(dq\&nameconvert\(dq\& that you can use to enable the use of the normal passwd/group
-+lookup calls in a chroot daemon (which does not require any extra files
-+be placed in the chroot area).  This use is configured as follows:
-+.IP 
-+.nf 
-+    name converter = /path/nameconvert
-+.fi 
-+
-+.IP 
-+You could alternately specify a program that responds to each request using
-+a lookup table to find the names and numbers, this allows you to configure
-+per\-module name conversion.  See the support/nameconvert script for the
-+details of what requests can be sent to the program.
-+.IP 
-+The program will have access to some of the environment variables that are
-+described in the section on \fBpre\-xfer exec\fP: \fBRSYNC_MODULE_NAME\fP,
-+\fBRSYNC_MODULE_PATH\fP, \fBRSYNC_HOST_ADDR\fP, \fBRSYNC_HOST_NAME\fP, and
-+\fBRSYNC_USER_NAME\fP.  This is useful if you want to customize the
-+conversion using a single program invocation.
-+.IP 
- .IP "\fBcharset\fP"
- This specifies the name of the character set in which the
- module\(cq\&s filenames are stored.  If the client uses an \fB\-\-iconv\fP option,

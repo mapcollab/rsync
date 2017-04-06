@@ -9,7 +9,7 @@ To use this patch, run these commands for a successful build:
     ./configure                         (optional if already run)
     make
 
-based-on: 16b49716d55a50f2e985b879b720b2c53c892a3a
+based-on: d1a1fec1340254926e17f5d83f848f7574286a33
 diff --git a/acls.c b/acls.c
 --- a/acls.c
 +++ b/acls.c
@@ -339,16 +339,3 @@ diff --git a/compat.c b/compat.c
  		if (preserve_xattrs && !local_server) {
  			rprintf(FERROR,
  			    "--xattrs requires protocol 30 or higher"
-diff -Nurp a/proto.h b/proto.h
---- a/proto.h
-+++ b/proto.h
-@@ -3,7 +3,9 @@
- int allow_access(const char *addr, const char **host_ptr, int i);
- void free_acl(stat_x *sxp);
- int get_acl(const char *fname, stat_x *sxp);
-+void old_send_acl(stat_x *sxp, int f);
- void send_acl(int f, stat_x *sxp);
-+void old_recv_acl(struct file_struct *file, int f);
- void receive_acl(int f, struct file_struct *file);
- void cache_tmp_acl(struct file_struct *file, stat_x *sxp);
- void uncache_tmp_acls(void);

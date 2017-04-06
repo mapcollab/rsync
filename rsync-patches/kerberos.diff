@@ -9,7 +9,7 @@ To use this patch, run these commands for a successful build:
     ./configure
     make
 
-based-on: 16b49716d55a50f2e985b879b720b2c53c892a3a
+based-on: d1a1fec1340254926e17f5d83f848f7574286a33
 diff --git a/Makefile.in b/Makefile.in
 --- a/Makefile.in
 +++ b/Makefile.in
@@ -78,7 +78,7 @@ diff --git a/clientserver.c b/clientserver.c
 diff --git a/configure.ac b/configure.ac
 --- a/configure.ac
 +++ b/configure.ac
-@@ -665,6 +665,31 @@ if test x"$enable_iconv" != x"no"; then
+@@ -695,6 +695,31 @@ if test x"$enable_iconv" != x"no"; then
  	AC_DEFINE(UTF8_CHARSET, "UTF-8", [String to pass to iconv() for the UTF-8 charset.])
  fi
  
@@ -495,7 +495,7 @@ diff --git a/loadparm.c b/loadparm.c
 diff --git a/main.c b/main.c
 --- a/main.c
 +++ b/main.c
-@@ -1410,7 +1410,7 @@ static int start_client(int argc, char *argv[])
+@@ -1418,7 +1418,7 @@ static int start_client(int argc, char *argv[])
  	 * remote shell command, we need to do the RSYNCD protocol first */
  	if (daemon_over_rsh) {
  		int tmpret;
@@ -523,195 +523,3 @@ diff --git a/rsync.h b/rsync.h
  #include <assert.h>
  
  #include "lib/pool_alloc.h"
-diff -Nurp a/config.h.in b/config.h.in
---- a/config.h.in
-+++ b/config.h.in
-@@ -36,6 +36,10 @@
- /* Define to 1 if the `getpgrp' function requires zero arguments. */
- #undef GETPGRP_VOID
- 
-+/* Define if you want GSSAPI authentication. Specifing a value will set the
-+   search path. */
-+#undef GSSAPI_OPTION
-+
- /* Define to 1 if you have the `aclsort' function. */
- #undef HAVE_ACLSORT
- 
-@@ -159,6 +163,12 @@
- /* Define to 1 if you have the <grp.h> header file. */
- #undef HAVE_GRP_H
- 
-+/* Define to 1 if you have the <gssapi/gssapi_generic.h> header file. */
-+#undef HAVE_GSSAPI_GSSAPI_GENERIC_H
-+
-+/* Define to 1 if you have the <gssapi/gssapi.h> header file. */
-+#undef HAVE_GSSAPI_GSSAPI_H
-+
- /* true if you have HPUX ACLs */
- #undef HAVE_HPUX_ACLS
- 
-diff -Nurp a/configure.sh b/configure.sh
---- a/configure.sh
-+++ b/configure.sh
-@@ -719,6 +719,7 @@ enable_ipv6
- enable_locale
- enable_iconv_open
- enable_iconv
-+with_gssapi
- enable_acl_support
- enable_xattr_support
- '
-@@ -1369,6 +1370,7 @@ Optional Packages:
-   --with-nobody-group=GROUP
-                           set the default unprivileged group (default nobody
-                           or nogroup)
-+  --with-gssapi           support GSSAPI authentication [default=check]
- 
- Some influential environment variables:
-   CC          C compiler command
-@@ -7886,6 +7888,105 @@ $as_echo "#define UTF8_CHARSET \"UTF-8\"
- 
- fi
- 
-+
-+# Check whether --with-gssapi was given.
-+if test "${with_gssapi+set}" = set; then :
-+  withval=$with_gssapi;
-+else
-+  with_gssapi=check
-+fi
-+
-+
-+
-+
-+if test "x$with_gssapi" != xno; then :
-+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing gss_import_name" >&5
-+$as_echo_n "checking for library containing gss_import_name... " >&6; }
-+if ${ac_cv_search_gss_import_name+:} false; then :
-+  $as_echo_n "(cached) " >&6
-+else
-+  ac_func_search_save_LIBS=$LIBS
-+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-+/* end confdefs.h.  */
-+
-+/* Override any GCC internal prototype to avoid an error.
-+   Use char because int might match the return type of a GCC
-+   builtin and then its argument prototype would still apply.  */
-+#ifdef __cplusplus
-+extern "C"
-+#endif
-+char gss_import_name ();
-+int
-+main ()
-+{
-+return gss_import_name ();
-+  ;
-+  return 0;
-+}
-+_ACEOF
-+for ac_lib in '' gss gssapi_krb5 ; do
-+  if test -z "$ac_lib"; then
-+    ac_res="none required"
-+  else
-+    ac_res=-l$ac_lib
-+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-+  fi
-+  if ac_fn_c_try_link "$LINENO"; then :
-+  ac_cv_search_gss_import_name=$ac_res
-+fi
-+rm -f core conftest.err conftest.$ac_objext \
-+    conftest$ac_exeext
-+  if ${ac_cv_search_gss_import_name+:} false; then :
-+  break
-+fi
-+done
-+if ${ac_cv_search_gss_import_name+:} false; then :
-+
-+else
-+  ac_cv_search_gss_import_name=no
-+fi
-+rm conftest.$ac_ext
-+LIBS=$ac_func_search_save_LIBS
-+fi
-+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_gss_import_name" >&5
-+$as_echo "$ac_cv_search_gss_import_name" >&6; }
-+ac_res=$ac_cv_search_gss_import_name
-+if test "$ac_res" != no; then :
-+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-+  for ac_header in gssapi/gssapi_generic.h gssapi/gssapi.h
-+do :
-+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
-+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
-+  cat >>confdefs.h <<_ACEOF
-+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
-+_ACEOF
-+
-+fi
-+
-+done
-+
-+       $as_echo "#define GSSAPI_OPTION 1" >>confdefs.h
-+
-+
-+else
-+  if test "x$with_gssapi" = xcheck; then
-+        { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-+as_fn_error $? "--with-gssapi was given, but test for function failed
-+See \`config.log' for more details" "$LINENO" 5; }
-+       fi
-+
-+fi
-+
-+
-+fi
-+
-+if test x"$enable_gssapi" != x"no"; then
-+   $as_echo "#define GSSAPI_OPTION 1" >>confdefs.h
-+
-+fi
-+
- { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether chown() modifies symlinks" >&5
- $as_echo_n "checking whether chown() modifies symlinks... " >&6; }
- if ${rsync_cv_chown_modifies_symlink+:} false; then :
-diff -Nurp a/proto.h b/proto.h
---- a/proto.h
-+++ b/proto.h
-@@ -52,7 +52,7 @@ int check_name(int fd,
- 	       char *name_buf, size_t name_buf_size);
- int start_socket_client(char *host, int remote_argc, char *remote_argv[],
- 			int argc, char *argv[]);
--int start_inband_exchange(int f_in, int f_out, const char *user, int argc, char *argv[]);
-+int start_inband_exchange(int f_in, int f_out, const char *user, const char *host, int argc, char *argv[]);
- int start_daemon(int f_in, int f_out);
- int daemon_main(void);
- void set_allow_inc_recurse(void);
-@@ -111,6 +111,19 @@ int atomic_create(struct file_struct *fi
- 		  dev_t rdev, stat_x *sxp, int del_for_flag);
- void check_for_finished_files(int itemizing, enum logcode code, int check_redo);
- void generate_files(int f_out, const char *local_name);
-+int auth_gss_client(int fd, const char *host);
-+OM_uint32 cb_init_sec_context(OM_uint32 *min_statp, gss_buffer_t in_token, gss_buffer_t out_token, void *cb_data);
-+char *auth_gss_server(int fd_in, int fd_out, int module, const char *host, const char *addr, const char *leader);
-+OM_uint32 cb_accept_sec_context(OM_uint32 *min_statp, gss_buffer_t in_token, gss_buffer_t out_token, void *cb_data);
-+void free_gss_buffer(gss_buffer_t gss_buffer);
-+void free_gss_name(gss_name_t *gss_buffer);
-+void import_gss_name(gss_name_t *gss_name, const char *name, gss_OID type);
-+char *export_name(const gss_name_t input_name);
-+void error_gss(OM_uint32 major, OM_uint32 minor, const char *format, ...);
-+int do_gss_dialog(int fd_in, int fd_out, int isServer, OM_uint32 (*eat_token)(OM_uint32 *,gss_buffer_t, gss_buffer_t, void *), void *cb_data);
-+char *get_cn(const gss_name_t input_name, const gss_OID mech_type);
-+void send_gss_token(int fd, gss_buffer_t token);
-+void recv_gss_token(int fd, gss_buffer_t token);
- struct hashtable *hashtable_create(int size, int key64);
- void hashtable_destroy(struct hashtable *tbl);
- void *hashtable_find(struct hashtable *tbl, int64 key, int allocate_if_missing);
-@@ -229,6 +242,7 @@ BOOL lp_reverse_lookup(int module_id);
- BOOL lp_strict_modes(int module_id);
- BOOL lp_transfer_logging(int module_id);
- BOOL lp_use_chroot(int module_id);
-+BOOL lp_use_gssapi(int module_id);
- BOOL lp_write_only(int module_id);
- int lp_load(char *pszFname, int globals_only);
- BOOL set_dparams(int syntax_check_only);
